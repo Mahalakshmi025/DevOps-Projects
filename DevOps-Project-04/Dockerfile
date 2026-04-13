@@ -9,12 +9,12 @@
 # Multi-stage build for optimized production image
 # ------------------------------------------------------------------------------
 
-# Stage 1: Build stage with development dependencies
+#stage-1 builder
 FROM python:3.9-slim as builder
 
-# Set environment variables for build
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
+#Setting environment variables for Python
+ENV PYTHONDONTWRITEBYTECODE 1 \
+    PYTHONUNBUFFERED 1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -24,66 +24,47 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create and activate virtual environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+WORKDIR /app
 
-# Copy and install Python dependencies
-COPY requirements.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY requirements.txt .
 
-# ------------------------------------------------------------------------------
-# Production stage
-# ------------------------------------------------------------------------------
+RUN pip install -r requirements.txt --no-cache-dir
 
-# Use minimal base image for production
+#stage-2 production image
 FROM python:3.9-slim as production
 
-# Set environment variables for production
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    DJANGO_SETTINGS_MODULE=myproject.settings.production \
-    PATH="/opt/venv/bin:$PATH"
+# Set environment variables for Python
+ENV PYTHONDONTWRITEBYTECODE 1 \
+    PYTHONUNBUFFERED 1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install runtime dependencies only
+#Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
+    libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
-# Create non-root user for security
+#craete non-root user for security
 RUN groupadd -r django && useradd -r -g django django
 
-# Copy virtual environment from builder stage
-COPY --from=builder /opt/venv /opt/venv
-
 # Set working directory
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy application code with proper ownership
+#copy application code with appropriate permissions
 COPY --chown=django:django . .
 
-# Create necessary directories and set permissions
-RUN mkdir -p /usr/src/app/static /usr/src/app/media /usr/src/app/logs \
-    && chown -R django:django /usr/src/app
+#create neccessary directories and set permissions
+RUN mkdir -p /app/static /app/media /app/logs  \
+    && chown -R django:django /app
 
-# Switch to non-root user
+#Switch to non-root user
 USER django
 
-# Collect static files
-RUN python manage.py collectstatic --noinput --clear
-
-# Health check for container orchestration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health/ || exit 1
-
-# Expose application port
+#Exposse application port
 EXPOSE 8000
 
-# ------------------------------------------------------------------------------
-# Application startup
-# ------------------------------------------------------------------------------
+# Command to run the application using Gunicorn
+CMD ["gunicorn", "myproject.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
 
-# Use gunicorn for production WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "myproject.wsgi:application"]
