@@ -71,8 +71,6 @@ RUN mkdir -p /usr/src/app/static /usr/src/app/media /usr/src/app/logs \
 # Switch to non-root user
 USER django
 
-# Collect static files
-RUN python manage.py collectstatic --noinput --clear
 
 # Health check for container orchestration
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
