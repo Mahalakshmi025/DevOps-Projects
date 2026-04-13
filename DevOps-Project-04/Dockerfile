@@ -1,8 +1,8 @@
 # Stage 1: Builder
 FROM python:3.9-slim AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
@@ -12,33 +12,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Stage 2: Production
 FROM python:3.9-slim AS production
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
     DJANGO_SETTINGS_MODULE=hello_world_django_app.settings
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev \
-    curl \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd -r django && useradd -r -g django django
+RUN useradd -m django
 
 WORKDIR /app
 
+# Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.9 /usr/local/lib/python3.9
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-COPY --chown=django:django . .
+# Copy project
+COPY . .
 
-RUN mkdir -p /app/static /app/media /app/logs && chown -R django:django /app
+# Fix permissions
+RUN chown -R django:django /app
 
 USER django
 
