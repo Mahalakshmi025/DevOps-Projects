@@ -42,7 +42,7 @@ FROM python:3.9-slim as production
 # Set environment variables for production
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DJANGO_SETTINGS_MODULE=myproject.settings.production \
+    DJANGO_SETTINGS_MODULE=hello_world_django_app.settings \
     PATH="/opt/venv/bin:$PATH"
 
 # Install runtime dependencies only
@@ -84,4 +84,4 @@ EXPOSE 8000
 # ------------------------------------------------------------------------------
 
 # Use gunicorn for production WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "myproject.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "hello_world_django_app.wsgi:application"]
